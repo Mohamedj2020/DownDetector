@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DownDetector</title>
+</head>
+<body>
+    <h1>Website Uptime Checker</h1>
+    <form method="POST">
+        <label for="url">Enter a website URL:</label>
+        <input type="text" name="url" id="url" placeholder="https://example.com" required>
+        <button type="submit">Check Status</button>
+    </form>
+
+    {% if result %}
+        <h2>Result:</h2>
+        <p>{{ result }}</p>
+    {% endif %}
+</body>
+</html>
+
+
+<h2>Check History (Last 10)</h2>
+<table border="1">
+    <tr>
+        <th>URL</th>
+        <th>Status</th>
+        <th>Checked At</th>
+    </tr>
+    {% for url, status, checked_at in logs %}
+    <tr>
+        <td>{{ url }}</td>
+        <td>{{ status }}</td>
+        <td>{{ checked_at }}</td>
+    </tr>
+    {% endfor %}
+</table>
