@@ -2,35 +2,134 @@
 <html>
 <head>
     <title>DownDetector</title>
+    <!-- Bootstrap CDN for cleaner look -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
-    <h1>Website Uptime Checker</h1>
-    <form method="POST">
-        <label for="url">Enter a website URL:</label>
-        <input type="text" name="url" id="url" placeholder="https://example.com" required>
-        <button type="submit">Check Status</button>
+<body class="container py-4">
+    <h1 class="mb-4">Website Uptime Checker</h1>
+    <form method="POST" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="url" id="url" class="form-control" placeholder="https://example.com" required>
+            <button type="submit" class="btn btn-primary">Check Status</button>
+        </div>
     </form>
 
     {% if result %}
-        <h2>Result:</h2>
-        <p>{{ result }}</p>
+        <div class="alert alert-info">{{ result }}</div>
     {% endif %}
+
+    <!-- Live Popular Sites Status Chart -->
+    <div class="mb-4">
+        <h2>Live Status of Top 20 Popular Websites</h2>
+        <canvas id="popularBarChart" width="800" height="300"></canvas>
+    </div>
+
+    <div class="mb-4">
+        <h2>Live Status Table</h2>
+        <table class="table table-bordered" id="statusTable">
+            <thead>
+                <tr>
+                    <th>Website</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be filled by JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <h2>Check History (Last 10)</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>URL</th>
+                <th>Status</th>
+                <th>Checked At</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for url, status, checked_at in logs %}
+            <tr>
+                <td>{{ url }}</td>
+                <td>{{ status }}</td>
+                <td>{{ checked_at }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+    async function updatePopularBarChart() {
+        const res = await fetch('/api/popular_status');
+        const data = await res.json();
+        const labels = Object.keys(data.statuses);
+        const statusData = Object.values(data.statuses).map(status => status === "up" ? 1 : 0);
+        const bgColors = Object.values(data.statuses).map(status => status === "up" ? "#28a745" : "#dc3545");
+
+        if (window.popularBarChart) {
+            popularBarChart.data.labels = labels;
+            popularBarChart.data.datasets[0].data = statusData;
+            popularBarChart.data.datasets[0].backgroundColor = bgColors;
+            popularBarChart.update();
+        } else {
+            const ctx = document.getElementById('popularBarChart').getContext('2d');
+            window.popularBarChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Status (1 = Up, 0 = Down)',
+                        data: statusData,
+                        backgroundColor: bgColors,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            ticks: {
+                                callback: function(value) {
+                                    return value === 1 ? 'Up' : 'Down';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    updatePopularBarChart();
+    setInterval(updatePopularBarChart, 5000);
+
+    async function updateStatusTable() {
+        const res = await fetch('/api/popular_status');
+        const data = await res.json();
+        const tbody = document.querySelector('#statusTable tbody');
+        tbody.innerHTML = '';
+        for (const [site, status] of Object.entries(data.statuses)) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${site}</td>
+                <td>
+                    <span class="badge ${status === 'up' ? 'bg-success' : 'bg-danger'}">
+                        ${status.toUpperCase()}
+                    </span>
+                </td>
+            `;
+            tbody.appendChild(row);
+        }
+    }
+    updateStatusTable();
+    setInterval(updateStatusTable, 5000);
+    </script>
 </body>
 </html>
-
-
-<h2>Check History (Last 10)</h2>
-<table border="1">
-    <tr>
-        <th>URL</th>
-        <th>Status</th>
-        <th>Checked At</th>
-    </tr>
-    {% for url, status, checked_at in logs %}
-    <tr>
-        <td>{{ url }}</td>
-        <td>{{ status }}</td>
-        <td>{{ checked_at }}</td>
-    </tr>
-    {% endfor %}
-</table>

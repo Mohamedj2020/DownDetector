@@ -1,10 +1,51 @@
-from flask import Flask, render_template, request
-import requests
-from db import init_db, log_result, get_logs  # ✅ Make sure db.py is in the same folder
+from flask import Flask, render_template, request, jsonify
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import sqlite3
+from datetime import datetime
 
 app = Flask(__name__)
+
+# List of popular sites to monitor
+popular_sites = [
+    "https://www.amazon.com", "https://www.apple.com", "https://www.bing.com",
+    "https://www.ebay.com", "https://www.facebook.com", "https://www.google.com",
+    "https://www.instagram.com", "https://www.linkedin.com", "https://www.live.com",
+    "https://www.microsoft.com", "https://www.netflix.com", "https://www.office.com",
+    "https://www.pinterest.com", "https://www.reddit.com", "https://www.twitch.tv",
+    "https://www.twitter.com", "https://www.wikipedia.org", "https://www.wordpress.com",
+    "https://www.yahoo.com", "https://www.youtube.com"
+]
+
+DB_NAME = "logs.db"
+
+# Initialize database
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT NOT NULL,
+            status TEXT NOT NULL,
+            checked_at TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
 init_db()
 
+# Helper to log results
+def log_result(url, status):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('INSERT INTO logs (url, status, checked_at) VALUES (?, ?, ?)', 
+              (url, status, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+
+# Route for main page
 @app.route("/", methods=["GET", "POST"])
 def home():
     result = None
@@ -12,25 +53,64 @@ def home():
     if request.method == "POST":
         url = request.form["url"]
 
-        try:
-            response = requests.get(url, timeout=5)
-            status_code = response.status_code
+        if not url.startswith('http'):
+            url = 'https://' + url  # Auto-add https if missing
 
-            if status_code == 200:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
                 result = f"{url} is UP ✅ (Status Code: 200)"
             else:
-                result = f"{url} is reachable but returned status code {status_code} ⚠️"
-
-        except requests.exceptions.Timeout:
-            result = f"{url} is DOWN ❌ (Connection timed out)"
+                result = f"{url} is reachable but returned status code {response.status_code} ⚠️"
         except requests.exceptions.RequestException:
             result = f"{url} is DOWN ❌ (Failed to connect)"
 
-        log_result(url, result)  # ✅ Log the result to SQLite
+        log_result(url, result)
 
-    logs = get_logs()  # ✅ Fetch logs after logging
-    return render_template("index.html", result=result, logs=logs)  # ✅ Pass logs to template
+    # Load recent history
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('SELECT url, status, checked_at FROM logs ORDER BY id DESC LIMIT 10')
+    logs = c.fetchall()
+    conn.close()
+
+    return render_template("index.html", result=result, logs=logs)
+
+@app.route("/api/popular_status")
+def popular_status():
+    statuses = {}
+
+    # Set Chrome options (headless = run without opening browser window)
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    driver = webdriver.Chrome(options=chrome_options)
+    driver.set_page_load_timeout(20)
+    driver.implicitly_wait(10)
+
+    for site in popular_sites:
+        try:
+            driver.get(site)
+            page_title = driver.title
+            if page_title:  # If page loads and has a title, assume it's up
+                statuses[site] = "up"
+            else:
+                statuses[site] = "down"
+        except Exception as e:
+            statuses[site] = "down"
+
+    driver.quit()
+
+    return jsonify({"statuses": statuses})
+
 
 if __name__ == "__main__":
     app.run(debug=True)
+
 
