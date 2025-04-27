@@ -13,12 +13,15 @@ Built with **Flask**, **Bootstrap**, **SQLite**, and **JavaScript**, it is evolv
 - ✅ Check website uptime in real-time
 - ✅ Log results with timestamps into SQLite database
 - ✅ Display recent checks in a responsive Bootstrap table
+- ✅ "Recent Outages and Problems" sidebar with clickable site links
 - 🔜 Scheduled automatic checks (APScheduler)
 - 🔜 Email alerts on downtime (SMTP)
 - 🔜 SMS alerts via Twilio
 - 🔜 User authentication (Flask-Login)
-- 🔜 Visualize uptime history (Chart.js)
-- 🔜 Manage personalized monitored websites
+- 🔜 Per-site detail pages with:
+- 🔜 Common problems (Pie Chart)
+- 🔜 Live outage reports (Line Graph)
+- 🔜 Personalized list management for monitored websites
 - 🔜 Export historical uptime reports (CSV/PDF)
 
 ---
@@ -48,3 +51,5 @@ Built with **Flask**, **Bootstrap**, **SQLite**, and **JavaScript**, it is evolv
 - Downloadable uptime history reports
 
  
+---
+
