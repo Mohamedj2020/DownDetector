@@ -20,6 +20,8 @@ popular_sites = [
 
 DB_NAME = "logs.db"
 
+    
+
 # Initialize database
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -42,7 +44,7 @@ def log_result(url, status):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('INSERT INTO logs (url, status, checked_at) VALUES (?, ?, ?)', 
-              (url, status, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            (url, status, datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
     conn.commit()
     conn.close()
 
