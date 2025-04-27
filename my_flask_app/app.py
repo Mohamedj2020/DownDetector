@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, jsonify
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+import requests   # ← you need this to use requests.get()
 import sqlite3
 from datetime import datetime
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+
 
 app = Flask(__name__)
 
