@@ -2,8 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import requests   # ← you need this to use requests.get()
 import sqlite3
 from datetime import datetime
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+
 
 
 app = Flask(__name__)
@@ -82,34 +81,26 @@ def home():
 
     return render_template("index.html", result=result, logs=logs)
 
+
 @app.route("/api/popular_status")
 def popular_status():
     statuses = {}
-
-    # Set Chrome options (headless = run without opening browser window)
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-
-    driver = webdriver.Chrome(options=chrome_options)
-    driver.set_page_load_timeout(20)
-    driver.implicitly_wait(10)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+    }
 
     for site in popular_sites:
         try:
-            driver.get(site)
-            page_title = driver.title
-            if page_title:  # If page loads and has a title, assume it's up
+            response = requests.get(site, headers=headers, timeout=10)
+            if response.status_code == 200:
                 statuses[site] = "up"
             else:
                 statuses[site] = "down"
-        except Exception as e:
+        except requests.exceptions.RequestException:
             statuses[site] = "down"
 
-    driver.quit()
-
     return jsonify({"statuses": statuses})
+
 
 
 if __name__ == "__main__":
