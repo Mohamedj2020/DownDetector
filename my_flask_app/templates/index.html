@@ -10,6 +10,8 @@
 
 <body class="container py-2">
     <h1 class="mb-4">Website Uptime Checker</h1>
+
+    <!-- Uptime Check Form -->
     <form method="POST" class="mb-4">
         <div class="input-group">
             <input type="text" name="url" id="url" class="form-control" placeholder="https://example.com" required>
@@ -21,27 +23,34 @@
         <div class="alert alert-info">{{ result }}</div>
     {% endif %}
 
-    <!-- Live Popular Sites Status Chart -->
-    <div class="mb-4">
-        <h2>Live Status of Top 20 Popular Websites</h2>
-        <canvas id="popularBarChart" width="800" height="300"></canvas>
+    <!-- Row: Live Status Chart + Current Outages -->
+    <div class="row mb-4">
+        <!-- Live Status Chart -->
+        <div class="col-md-6 mb-4">
+            <h2>Live Website Status</h2>
+            <canvas id="popularBarChart" width="100%" height="300"></canvas>
+        </div>
+
+        <!-- Current Outages Table -->
+        <div class="col-md-6 mb-4">
+            <h2>Current Outages</h2>
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table class="table table-bordered table-sm" id="statusTable">
+                    <thead>
+                        <tr>
+                            <th>Website</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Filled by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <div class="mb-4">
-        <h2>Live Status Table</h2>
-        <table class="table table-bordered" id="statusTable">
-            <thead>
-                <tr>
-                    <th>Website</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Rows will be filled by JS -->
-            </tbody>
-        </table>
-    </div>
-
+    <!-- Check History Table -->
     <h2>Check History (Last 10)</h2>
     <table class="table table-striped">
         <thead>
@@ -62,7 +71,9 @@
         </tbody>
     </table>
 
+    <!-- Scripts -->
     <script>
+    // Bar Chart: Live Website Status
     async function updatePopularBarChart() {
         const res = await fetch('/api/popular_status');
         const data = await res.json();
@@ -108,29 +119,40 @@
         }
     }
 
-    updatePopularBarChart();
-    setInterval(updatePopularBarChart, 5000);
-
+    // Current Outages Table
     async function updateStatusTable() {
         const res = await fetch('/api/popular_status');
         const data = await res.json();
         const tbody = document.querySelector('#statusTable tbody');
         tbody.innerHTML = '';
+        let hasOutages = false;
+
         for (const [site, status] of Object.entries(data.statuses)) {
+            if (status !== 'up') {
+                hasOutages = true;
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${site}</td>
+                    <td><span class="badge bg-danger">${status.toUpperCase()}</span></td>
+                `;
+                tbody.appendChild(row);
+            }
+        }
+
+        if (!hasOutages) {
             const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${site}</td>
-                <td>
-                    <span class="badge ${status === 'up' ? 'bg-success' : 'bg-danger'}">
-                        ${status.toUpperCase()}
-                    </span>
-                </td>
-            `;
+            row.innerHTML = `<td colspan="2" class="text-center text-muted">No current outages detected.</td>`;
             tbody.appendChild(row);
         }
     }
+
+    // Initialize both
+    updatePopularBarChart();
+    setInterval(updatePopularBarChart, 5000);
+
     updateStatusTable();
     setInterval(updateStatusTable, 5000);
     </script>
 </body>
 </html>
+
