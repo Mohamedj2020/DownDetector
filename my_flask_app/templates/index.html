@@ -1,158 +1,157 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>DownDetector</title>
-    <!-- Bootstrap CDN for cleaner look -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>DownDetector</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 
 <body class="container py-2">
-    <h1 class="mb-4">Website Uptime Checker</h1>
+  <h1 class="mb-4">Website Uptime Checker</h1>
 
-    <!-- Uptime Check Form -->
-    <form method="POST" class="mb-4">
-        <div class="input-group">
-            <input type="text" name="url" id="url" class="form-control" placeholder="https://example.com" required>
-            <button type="submit" class="btn btn-primary">Check Status</button>
-        </div>
-    </form>
-
-    {% if result %}
-        <div class="alert alert-info">{{ result }}</div>
-    {% endif %}
-
-    <!-- Row: Live Status Chart + Current Outages -->
-    <div class="row mb-4">
-        <!-- Live Status Chart -->
-        <div class="col-md-6 mb-4">
-            <h2>Live Website Status</h2>
-            <canvas id="popularBarChart" width="100%" height="300"></canvas>
-        </div>
-
-        <!-- Current Outages Table -->
-        <div class="col-md-6 mb-4">
-            <h2>Current Outages</h2>
-            <div style="max-height: 300px; overflow-y: auto;">
-                <table class="table table-bordered table-sm" id="statusTable">
-                    <thead>
-                        <tr>
-                            <th>Website</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Filled by JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
+  <!-- Form -->
+  <form method="POST" class="mb-4">
+    <div class="input-group">
+      <input type="text" name="url" class="form-control" placeholder="https://example.com" required>
+      <button type="submit" class="btn btn-primary">Check Status</button>
     </div>
+  </form>
 
-    <!-- Check History Table -->
-    <h2>Check History (Last 10)</h2>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>URL</th>
-                <th>Status</th>
-                <th>Checked At</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for url, status, checked_at in logs %}
-            <tr>
-                <td>{{ url }}</td>
-                <td>{{ status }}</td>
-                <td>{{ checked_at }}</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+  {% if result %}
+    <div class="alert alert-info">{{ result }}</div>
+  {% endif %}
 
-    <!-- Scripts -->
-    <script>
-    // Bar Chart: Live Website Status
+  <!-- Chart + Outages Row -->
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <h2>Live Website Status</h2>
+      <canvas id="popularBarChart" style="height: 300px;"></canvas>
+    </div>
+    <div class="col-md-6">
+      <h2>Current Outages</h2>
+      <div style="max-height: 300px; overflow-y: auto;">
+        <table class="table table-bordered table-sm" id="statusTable">
+          <thead>
+            <tr><th>Website</th><th>Status</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <h2>Check History (Last 10)</h2>
+  <table class="table table-striped">
+    <thead>
+      <tr><th>URL</th><th>Status</th><th>Checked At</th></tr>
+    </thead>
+    <tbody>
+      {% for url, status, checked_at in logs %}
+      <tr>
+        <td>{{ url }}</td>
+        <td>{{ status }}</td>
+        <td>{{ checked_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Scripts -->
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
     async function updatePopularBarChart() {
+      try {
         const res = await fetch('/api/popular_status');
         const data = await res.json();
+
         const labels = Object.keys(data.statuses);
-        const statusData = Object.values(data.statuses).map(status => status === "up" ? 1 : 0);
-        const bgColors = Object.values(data.statuses).map(status => status === "up" ? "#28a745" : "#dc3545");
+        const statusData = labels.map(site => data.statuses[site] === "up" ? 1 : 0);
+        const bgColors = labels.map(site => data.statuses[site] === "up" ? "#28a745" : "#dc3545");
+
+        const ctx = document.getElementById('popularBarChart').getContext('2d');
 
         if (window.popularBarChart) {
-            popularBarChart.data.labels = labels;
-            popularBarChart.data.datasets[0].data = statusData;
-            popularBarChart.data.datasets[0].backgroundColor = bgColors;
-            popularBarChart.update();
+          window.popularBarChart.data.labels = labels;
+          window.popularBarChart.data.datasets[0].data = statusData;
+          window.popularBarChart.data.datasets[0].backgroundColor = bgColors;
+          window.popularBarChart.update();
         } else {
-            const ctx = document.getElementById('popularBarChart').getContext('2d');
-            window.popularBarChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Status (1 = Up, 0 = Down)',
-                        data: statusData,
-                        backgroundColor: bgColors,
-                    }]
+          window.popularBarChart = new window.Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: 'Website Status (1 = UP, 0 = DOWN)',
+                data: statusData,
+                backgroundColor: bgColors
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { display: false }},
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 1,
+                  ticks: {
+                    callback: value => value === 1 ? 'UP' : 'DOWN'
+                  }
                 },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { display: false }
+                x: {
+                  ticks: {
+                    callback: (label, index, labels) => {
+                      const site = labels[index];
+                      return site.replace("https://www.", "").replace(".com", "").slice(0, 10);
                     },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 1,
-                            ticks: {
-                                callback: function(value) {
-                                    return value === 1 ? 'Up' : 'Down';
-                                }
-                            }
-                        }
-                    }
+                    autoSkip: false,
+                    maxRotation: 90,
+                    minRotation: 45
+                  }
                 }
-            });
-        }
-    }
-
-    // Current Outages Table
-    async function updateStatusTable() {
-        const res = await fetch('/api/popular_status');
-        const data = await res.json();
-        const tbody = document.querySelector('#statusTable tbody');
-        tbody.innerHTML = '';
-        let hasOutages = false;
-
-        for (const [site, status] of Object.entries(data.statuses)) {
-            if (status !== 'up') {
-                hasOutages = true;
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${site}</td>
-                    <td><span class="badge bg-danger">${status.toUpperCase()}</span></td>
-                `;
-                tbody.appendChild(row);
+              }
             }
+          });
         }
-
-        if (!hasOutages) {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td colspan="2" class="text-center text-muted">No current outages detected.</td>`;
-            tbody.appendChild(row);
-        }
+      } catch (err) {
+        console.error("Chart.js failed to render:", err);
+      }
     }
 
-    // Initialize both
+    async function updateStatusTable() {
+      const res = await fetch('/api/popular_status');
+      const data = await res.json();
+      const tbody = document.querySelector('#statusTable tbody');
+      tbody.innerHTML = '';
+      let hasOutages = false;
+
+      for (const [site, status] of Object.entries(data.statuses)) {
+        if (status !== 'up') {
+          hasOutages = true;
+          const row = document.createElement('tr');
+          row.innerHTML = `<td>${site}</td><td><span class="badge bg-danger">${status.toUpperCase()}</span></td>`;
+          tbody.appendChild(row);
+        }
+      }
+
+      if (!hasOutages) {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td colspan="2" class="text-center text-muted">No current outages detected.</td>`;
+        tbody.appendChild(row);
+      }
+    }
+
     updatePopularBarChart();
     setInterval(updatePopularBarChart, 5000);
 
     updateStatusTable();
     setInterval(updateStatusTable, 5000);
-    </script>
+  });
+  </script>
 </body>
 </html>
+
+
+
+
 
