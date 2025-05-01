@@ -63,24 +63,39 @@
     async function updatePopularBarChart() {
       try {
         const res = await fetch('/api/popular_status');
+        if (!res.ok) {
+          throw new Error(`API request failed with status ${res.status}`);
+        }
         const data = await res.json();
+
+        // Add check for valid data structure
+        if (!data || typeof data.statuses !== 'object' || data.statuses === null) {
+          console.error("Invalid data structure received from API:", data);
+          // Optionally clear the chart or show an error state if needed
+          // For now, just return to prevent further errors
+          return;
+        }
 
         const labels = Object.keys(data.statuses);
         const statusData = labels.map(site => data.statuses[site] === "up" ? 1 : 0);
         const bgColors = labels.map(site => data.statuses[site] === "up" ? "#28a745" : "#dc3545");
 
         const ctx = document.getElementById('popularBarChart').getContext('2d');
+        if (!ctx) {
+          console.error("Failed to get 2D context for canvas");
+          return;
+        }
 
-        if (window.popularBarChart) {
-          window.popularBarChart.data.labels = labels;
-          window.popularBarChart.data.datasets[0].data = statusData;
-          window.popularBarChart.data.datasets[0].backgroundColor = bgColors;
-          window.popularBarChart.update();
-        } else {
-          window.popularBarChart = new window.Chart(ctx, {
-            type: 'bar',
-            data: {
-              labels: labels,
+        // Destroy existing chart instance if it exists
+        if (window.popularBarChart instanceof Chart) {
+            window.popularBarChart.destroy();
+        }
+
+        // Create a new chart instance
+        window.popularBarChart = new window.Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: labels,
               datasets: [{
                 label: 'Website Status (1 = UP, 0 = DOWN)',
                 data: statusData,
@@ -119,25 +134,43 @@
     }
 
     async function updateStatusTable() {
-      const res = await fetch('/api/popular_status');
-      const data = await res.json();
-      const tbody = document.querySelector('#statusTable tbody');
-      tbody.innerHTML = '';
-      let hasOutages = false;
+      try {
+        const res = await fetch('/api/popular_status');
+         if (!res.ok) { // Add check for fetch success
+          throw new Error(`API request failed for status table with status ${res.status}`);
+        }
+        const data = await res.json();
 
-      for (const [site, status] of Object.entries(data.statuses)) {
-        if (status !== 'up') {
-          hasOutages = true;
+        // Add check for valid data structure
+        if (!data || typeof data.statuses !== 'object' || data.statuses === null) {
+          console.error("Invalid data structure received from API for status table:", data);
+          return; // Stop processing if data is invalid
+        }
+
+        const tbody = document.querySelector('#statusTable tbody');
+        if (!tbody) { // Add check for tbody existence
+             console.error("Failed to find status table body element");
+             return;
+        }
+        tbody.innerHTML = '';
+        let hasOutages = false;
+
+        for (const [site, status] of Object.entries(data.statuses)) {
+          if (status !== 'up') {
+            hasOutages = true;
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${site}</td><td><span class="badge bg-danger">${status.toUpperCase()}</span></td>`;
+            tbody.appendChild(row);
+          }
+        }
+
+        if (!hasOutages) {
           const row = document.createElement('tr');
-          row.innerHTML = `<td>${site}</td><td><span class="badge bg-danger">${status.toUpperCase()}</span></td>`;
+          row.innerHTML = `<td colspan="2" class="text-center text-muted">No current outages detected.</td>`;
           tbody.appendChild(row);
         }
-      }
-
-      if (!hasOutages) {
-        const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="2" class="text-center text-muted">No current outages detected.</td>`;
-        tbody.appendChild(row);
+      } catch (err) {
+          console.error("Failed to update status table:", err);
       }
     }
 
