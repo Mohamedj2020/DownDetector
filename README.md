@@ -14,7 +14,7 @@ Built with **Flask**, **Bootstrap**, **SQLite**, and **JavaScript**, it is evolv
 - ✅ Log results with timestamps into SQLite database
 - ✅ Display recent checks in a responsive Bootstrap table
 - ✅ "Recent Outages and Problems" sidebar with clickable site links
-- 🔜 Scheduled automatic checks (APScheduler)
+- ✅ Scheduled automatic checks (APScheduler)
 - 🔜 Email alerts on downtime (SMTP)
 - 🔜 SMS alerts via Twilio
 - 🔜 User authentication (Flask-Login)
